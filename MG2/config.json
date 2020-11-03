@@ -1,0 +1,60 @@
+{
+    "KeyWallet": {
+        "File": "./keystore",
+        "Password": "Test1234$"
+    },
+    "Service Endpoint": "http://13.125.231.129:9080/api/v3/4",
+    "Network ID": "4",
+    "ID Contract Address": "cx16bdacf2412b280bb3d92b5454e674bf624352c3",
+    "PTM Contract Address": "cx8a8d20c78cb6ffffbc89c3a2b13025015988b11f",
+    "PGM Contract Address": "cx9efc571f0def8bc9cb1945434c0506d90205f717",
+    "BI Server Port": 10002,
+    "BI host" : "localhost",
+    "PTM Server Port": 10022,
+    "PTM host" : "localhost",
+
+    "EMS Server URL" : "http://220.80.195.130:4848",
+    "low SoC lv" : 60,
+    "high SoC lv" : 80,
+    "contract delay set" : 1000,
+    "finish delay set" : 3600,
+    "device" : {
+          "url" : "/ddevice/device",
+          "rq_param_device" : "INV",
+          "rq_param_tpm_id" : "5",
+          "rq_param_send_time":""
+          },
+    "regist" : {
+          "url" : "/m_id_regist",
+          "rq_param_target" : "EMS",
+          "rq_param_type" : "REQ",
+          "rq_param_interface" : "IF.ID.regist",
+          "rq_param_parameter" : ""
+          },
+    "params" : {
+          "url" : "/a_stateparams",
+          "rq_param_target" : "EMS",
+          "rq_param_type" : "REQ",
+          "rq_param_interface" : "IF_STATE.stateParams",
+          "rq_param_parameter" : "",
+          "rq_param_time" : ""
+          },
+    "contractMsg" : {
+          "url" : "/m_tr/contractMsg",
+          "rq_param_target" : "EMS",
+          "rq_param_type" : "REQ",
+          "rq_param_interface" : "IF.TR.contractMsg",
+          "rq_param_parameter" : {
+                  "dep2_rq_param_id": "",
+                  "dep2_rq_param_seller": "",
+                  "dep2_rq_param_buyer": "",
+                  "dep2_rq_param_price": 0,
+                  "dep2_rq_param_quantity": 0,
+                  "dep2_rq_param_tr_st_time": "",
+                  "dep2_rq_param_tr_ed_time": ""
+                  },
+          "rq_param_time" : "20200923160500"
+        },
+    "start_delay" : 300
+
+}

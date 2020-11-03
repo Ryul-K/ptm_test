@@ -1,0 +1,10 @@
+{
+    "target": "PTM",
+    "type": "REQ",
+    "interface": "IF.TR.endMsg",
+    "parameter": {
+        "id": "id:deal:0x8e4728dc498e271d8b66488284bb982f14d87ae61baaf37dce52fc125f05ef60",
+        "cm_type": ""
+    },
+    "request_time": ""
+}
