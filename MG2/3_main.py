@@ -11,6 +11,15 @@ headers = {'Content-Type': 'application/json; charset=utf-8'} #EMS 데이터 타
 # response.text
 
 
+class buyer_regist_error(Exception):
+    pass
+class cancel_order(Exception):
+    pass
+class cancel_offer(Exception):
+    pass
+class offer_error(Exception):
+    pass
+
 def send_ptm_data_to_ems (target_Data) :
     response_json = {}
     with open("config.json") as f:
@@ -37,6 +46,7 @@ def send_ptm_data_to_ems (target_Data) :
     elif target_Data == "regist" :
         try:
             target['rq_param_parameter'] = eid
+            target['rq_param_time'] = datetime.fromtimestamp(int(str(time.time())[0:10])).strftime('%Y%m%d%H%M%S')
             res = requests.post(ems_url, headers=headers, data=json.dumps(target))
             # print('\n status_code : ' + str(res.status_code))
             print('PTM ==> EMS: ')
@@ -79,14 +89,22 @@ def send_ptm_data_to_ems (target_Data) :
 
     elif target_Data == "contractMsg" :
         try:
+            print(deal_info_completed["kwh"])
+            print(tmp_config_json["tx_electrical_energy"])
+            print(type(deal_info_completed["kwh"]))
+            print(type(tmp_config_json["tx_electrical_energy"]))
+            tmp_ed_time_h = int(deal_info_completed["kwh"]) / tmp_config_json["tx_electrical_energy"]
+            print(tmp_ed_time_h)
+            tmp_ed_time_sec = tmp_ed_time_h * 3600
+            print(tmp_ed_time_sec)
             target['rq_param_parameter']['dep2_rq_param_id'] = deal_info_completed["deal_id"]
             target['rq_param_parameter']['dep2_rq_param_seller'] = deal_info_completed["seller_eid"]
             target['rq_param_parameter']['dep2_rq_param_buyer'] = deal_info_completed["buyer_eid"]
             target['rq_param_parameter']['dep2_rq_param_price'] = deal_info_completed["price"]
             target['rq_param_parameter']['dep2_rq_param_quantity'] = deal_info_completed["kwh"]
-            target['rq_param_parameter']['dep2_rq_param_tr_st_time'] = datetime.fromtimestamp(int(deal_info_completed["txTimestamp"][0:10]) + tmp_config_json["start_delay"]).strftime('%Y%m%d%H%M%S')
+            target['rq_param_parameter']['dep2_rq_param_tr_st_time'] = datetime.fromtimestamp(int(deal_info_completed["txTimestamp"][0:10]) + tmp_config_json["start_delay"] - tmp_config_json["safety_delay"]).strftime('%Y%m%d%H%M%S')
             #complete 되고 tmp_config_json["start_delay"] = 300초 만큼 딜레이 후 전력 거래 시#
-            target['rq_param_parameter']['dep2_rq_param_tr_ed_time'] = ""
+            target['rq_param_parameter']['dep2_rq_param_tr_ed_time'] = datetime.fromtimestamp(int(deal_info_completed["txTimestamp"][0:10]) - tmp_config_json["safety_delay"] + tmp_ed_time_sec).strftime('%Y%m%d%H%M%S')
             target['rq_param_time'] = datetime.fromtimestamp(int(str(time.time())[0:10])).strftime('%Y%m%d%H%M%S')
 
             res = requests.post(ems_url, headers=headers, data=json.dumps(target))
@@ -193,7 +211,7 @@ def tr_offer(quantity, price):
     print('BI ==> PTM: ')
     prnt(response)
 
-    return response["parameter"]
+    return response
 
 
 IF_TR_order = {
@@ -698,173 +716,298 @@ if __name__ == "__main__":
     client.connect(host, port)
     print("Client connected")
 
-    print("loading EMS Data ...\n")
-    stateParams=send_ptm_data_to_ems ("params")
-    stateOfcharge = round(float(stateParams['rs_stateParameter'][0]['stateOfcharge']))
-    genRatio = round(float(stateParams['rs_stateParameter'][0]['genRatio']))
-    lossRatio = round(float(stateParams['rs_stateParameter'][0]['lossRatio']))
+
+
     # stateOfcharge = float(input("SoC lv: "))
 
     # while True:
+    while True:
+        with open("config.json") as config_set:
+            config_set_json = json.loads(config_set.read())
+        print("loading EMS Data ...\n")
+        stateParams=send_ptm_data_to_ems ("params")
+        stateOfcharge = round(float(stateParams['rs_stateParameter'][0]['stateOfcharge']))
+        genRatio = round(float(stateParams['rs_stateParameter'][0]['genRatio']))
+        lossRatio = round(float(stateParams['rs_stateParameter'][0]['lossRatio']))
 
-    if stateOfcharge <= config_set_json["low SoC lv"] : #구매자상태
-        print('\n### MODE: BUYER STATE ###\n')
-        # get EID (IF.ID.retrieve)
-        eid_json = id_retrieve()
-        eid = eid_json["eid"]
-        #print("==JSON===== " + str(eid_json))
-        # print("==EXTRACT== " + str(eid))
-        #print("==TYPE===== " + str(type(eid)))
+        #상태 기
+        record_result_json = tr_production_record(round(stateOfcharge), str(time.time())[0:10]) #genRatio float타입은 에러생김
+        record_result = record_result_json["result"]
 
-        # get offered deal list (IF.TR.list.offered)
-        offered_deal_list_json = tr_list_offered()  #제안된 거래 리스트 불러
-        offered_deal_list = offered_deal_list_json["registered_deal_info_list"]
-        #print("==JSON===== " + str(offered_deal_list_json))
-        # print("==EXTRACT== " + str(offered_deal_list))
-        #print("==TYPE===== " + str(type(offered_deal_list)))
+        if stateOfcharge <= config_set_json["low SoC lv"] : #구매자상태
+            time.sleep(10)
+            print('\n### MODE: BUYER STATE ###\n')
+            # get EID (IF.ID.retrieve)
+            eid_json = id_retrieve()
+            eid = eid_json["eid"]
+            #print("==JSON===== " + str(eid_json))
+            # print("==EXTRACT== " + str(eid))
+            #print("==TYPE===== " + str(type(eid)))
 
-        # get orderingID (searching min, price addr) # 동일한 가격을 경우, timestamp라던지, kwh값이라던지 선택
-        min_price_list = list(offered_deal_list[i]['price'] for i in range(len(offered_deal_list))) # 가격에 따른 리스트업.
-        prnt(min_price_list)
-        min_price_list_index = min_price_list.index(min(min_price_list))
-        orderingID_json = offered_deal_list[min_price_list_index]
-        prnt(min_price_list_index)
-        prnt(orderingID_json)
-        #elements; 'deal_id', 'state', 'seller_eid', 'price', 'kwh', 'ordered')
-        # print("==EXTRACT== " + str(orderingID_json))
+            # get offered deal list (IF.TR.list.offered)
+            offered_deal_list_json = tr_list_offered()  #제안된 거래 리스트 불러
+            offered_deal_list = offered_deal_list_json["registered_deal_info_list"]
+            # print(type(offered_deal_list[0]["ordered"]))
+            false = "False"
+            maket_cnt = 0
+            for i in range(0, len(offered_deal_list)):
+                if false not in offered_deal_list[i]["ordered"]:
+                    maket_cnt += 1
+            if maket_cnt >= 1:
+                try:
+                    # get orderingID (searching min, price addr) # 동일한 가격을 경우, timestamp라던지, kwh값이라던지 선택
+                    min_price_list = list(offered_deal_list[i]['price'] for i in range(len(offered_deal_list))) # 가격에 따른 리스트업.
+                    # prnt(min_price_list)
+                    min_price_list_index = min_price_list.index(min(min_price_list))
+                    orderingID_json = offered_deal_list[min_price_list_index]
+                    # prnt(min_price_list_index)
+                    prnt(orderingID_json)
+                    #elements; 'deal_id', 'state', 'seller_eid', 'price', 'kwh', 'ordered')
+                    # print("==EXTRACT== " + str(orderingID_json))
 
-        # order deal (IF.TR.order)  #가져온 리스트를 기반으로 order
-        order_result_json = tr_order(orderingID_json['deal_id'], orderingID_json['kwh'], orderingID_json['price'])
-        order_result = order_result_json["result"]
-        # print("==JSON===== " + str(order_result_json))
-        # print("==EXTRACT== " + str(order_result))
-        # print("==TYPE===== " + str(type(order_result)))
+                    # order deal (IF.TR.order)  #가져온 리스트를 기반으로 order
+                    order_result_json = tr_order(orderingID_json['deal_id'], orderingID_json['kwh'], orderingID_json['price'])
+                    order_result = order_result_json["result"]
+                    print(order_result)
+                    print(type(order_result))
+                    if order_result == False:
+                        raise buyer_regist_error()
 
-        # get owner's ordered deal id
-        offered_deal_id_json = tr_browse_dealIDBuyer(eid)  #내 주문에 대한 deal_id 확보
-        offered_deal_id = offered_deal_id_json["registered_deal_id"]
-        # print("===== deal id: " + offered_deal_id)
-        # print("==TYPE===== " + str(type(browse_deal_json)))
+                    # print("==JSON===== " + str(order_result_json))
+                    # print("==EXTRACT== " + str(order_result))
+                    # print("==TYPE===== " + str(type(order_result)))
 
-        for count in tqdm(range(1,config_set_json["contract delay set"]), desc="Waiting for orders", mininterval=1):
+                    # get owner's ordered deal id
+                    offered_deal_id_json = tr_browse_dealIDBuyer(eid)  #내 주문에 대한 deal_id 확보
+                    offered_deal_id = offered_deal_id_json["registered_deal_id"]
+                    # print("===== deal id: " + offered_deal_id)
+                    # print("==TYPE===== " + str(type(browse_deal_json)))
+                    tmp_accepted = 0
+                    for count in tqdm(range(1,config_set_json["contract delay set"]), desc="Waiting for Accept", mininterval=1):
 
-            browse_deal_json = tr_browse_deal(offered_deal_id)
-            browse_deal_info = browse_deal_json['deal_info']
-            ordering_state = browse_deal_info['state']
-            # print("==JSON===== " + str(browse_deal_json))
-            # print("==EXTRACT== " + str(ordering_state))
-            # print("==TYPE===== " + str(type(ordering_state)))
+                        browse_deal_json = tr_browse_deal(offered_deal_id)
+                        browse_deal_info = browse_deal_json['deal_info']
+                        ordering_state = browse_deal_info['state']
+                        # print("==JSON===== " + str(browse_deal_json))
+                        # print("==EXTRACT== " + str(ordering_state))
+                        # print("==TYPE===== " + str(type(ordering_state)))
 
-            if ordering_state == "accepted": #
-                print("great")
-                print("accept")
+                        if ordering_state == "accepted": #
+                            tmp_accepted = 1
+                            print("accept")
+                            time.sleep(1)
+
+                            accepted_list_json = tr_list_accepted()
+                            # accepted_list = accepted_list_json[" "]
+                            print(str(accepted_list_json))
+
+                            # ordered_list_json = tr_list_ordered(offered_deal_id)  # order ID 조회
+                            # ordered_list = ordered_list_json["requested_deal_info_list"]
+
+                            deal_info_json = tr_browse_deal(offered_deal_id) #거래 조회
+                            deal_info_completed = deal_info_json["deal_info"]
+                            prnt(deal_info_completed)
+                            send_ptm_data_to_ems('contractMsg') #Accept 이후 contractMsg를 통해 EMS에 결과 정보 전thd
+
+                            config_set_json["low SoC lv"] -= 5
+                            with open("./config.json", 'w') as f1:
+                                json.dump(config_set_json, f1, indent=4)
+                            time.sleep(1)
+                            break
+
+                        # print("=== NOT Accepted ===")
+                        time.sleep(1)
+                        continue
+                    if not tmp_accepted == 1:
+                        raise cancel_order()
+
+                except cancel_order:
+                    print("거래가 성사되지 않았습니다.")
+                    cancel_result_json = tr_cancel_order()
+                    cancel_result = cancel_result_json["result"]
+                    prnt(cancel_result_json)
+
+                except buyer_regist_error:
+                    print("이미 거래 중 상태입니다.")
+                    print("기존 거래를 취소합니다.")
+                    cancel_result_json = tr_cancel_order()
+                    cancel_result = cancel_result_json["result"]
+                    cancel_result_json = tr_cancel_offer()
+                    cancel_result = cancel_result_json["result"]
+                    prnt(cancel_result_json)
+            else :
+                print("There are no products available for trading.")
+            #print("==JSON===== " + str(offered_deal_list_json))
+            # print("==EXTRACT== " + str(offered_deal_list))
+            #print("==TYPE===== " + str(type(offered_deal_list)))
+
+
+
+            # accepted_list #여기를 조건문 처리해서 마무리되게하고 전체 flow 반복되게하면 되지않으까?
+
+
+
+            # accepted_list_json = tr_list_accepted()
+            # print(str(accepted_list_json))
+
+            # finish deal (IF.TR.finish)
+            # finish_result_json = tr_finish()
+            # finish_result = finish_result_json["result"]
+            # print("==JSON===== " + str(finish_result_json))
+            # print("==EXTRACT== " + str(finish_result))
+            # print("==TYPE===== " + str(type(finish_result)))
+
+            # cancel ordered deal (IF.TR.cancel.order)
+            # cancel_result_json = tr_cancel_order()
+            # cancel_result = cancel_result_json["result"]
+            # print("==JSON===== " + str(cancel_result_json))
+            # print("==EXTRACT== " + str(cancel_result))
+            # print("==TYPE===== " + str(type(cancel_result)))
+
+
+            # get EID Document (IF.ID.document)
+            # eid_document_json = id_document(eid)
+            # eid_document = eid_document_json["eid_document"]
+            # print("==JSON===== " + str(eid_document_json))
+            # print("==EXTRACT== " + str(eid_document))
+            # print("==TYPE===== " + str(type(eid_document)))
+
+
+            # client.close()
+            # print("Client closed")
+
+
+
+
+
+
+
+
+
+        elif stateOfcharge >= config_set_json["high SoC lv"] : #판매자상태
+            try:
+                print('\n### MODE: SELLER STATE ###\n')
+                # get EID (IF.ID.retrieve)
+                eid_json = id_retrieve()
+                eid = eid_json["eid"]
+                # print("BEMS ID: ", eid[9:])
+                # print("==JSON===== " + str(eid_json))
+                # print("==EXTRACT== " + str(eid))
+                # print("==TYPE===== " + str(type(eid)))
+
+                send_ptm_data_to_ems("regist")
+
+                # offer deal (IF.TR.offer) price, quantity
+                deal_id_json = tr_offer("1800", "5") #  price는 한전가격으로? //SoC 용량, pcs 용량 고려해서 연산해보//
+                deal_id = deal_id_json["parameter"]["deal_id"]
+                if deal_id_json["errno"] == "404":
+                    raise offer_error()
+
+                print("")
+                offered_deal_id_json = tr_browse_dealIDSeller(eid)
+                # offered_deal_id_json = tr_browse_dealID(eid)
+                offered_deal_id = offered_deal_id_json["ongoing_deal_id"]
+                # print("===== deal id: " + str(offered_deal_id_json))
+                # print("===== deal id: " + offered_deal_id)
+                tmp_ordered = 0
+                for count in tqdm(range(1,config_set_json["contract delay set"]), desc="Waiting for orders", mininterval=1):
+
+                    deal_info_json = tr_browse_deal(offered_deal_id)
+                    deal_info = deal_info_json["deal_info"]["ordered"]
+
+                    if deal_info == "True":
+                        print()
+                        ordered_list_json = tr_list_ordered(offered_deal_id)  # order ID 조회
+                        ordered_list = ordered_list_json["requested_deal_info_list"]
+
+                        acceptingID_info = ordered_list[0]
+                        accept_result_json = tr_accept(acceptingID_info['buyer_eid'])
+                        accept_result = accept_result_json["result"]
+
+
+                        deal_info_json = tr_browse_deal(offered_deal_id) #거래 조회
+                        deal_info_completed = deal_info_json["deal_info"]
+                        prnt(deal_info_completed)
+                        send_ptm_data_to_ems('contractMsg')
+
+                        tmp_ordered = 1
+                        break
+
+                    time.sleep(1)
+                    continue
+
+                if not tmp_ordered == 1:
+                    raise cancel_offer()
+                #end_time계산
+                finish_result_json = tr_finish()
+                finish_result = finish_result_json["result"]
+                config_set_json["high SoC lv"] += int(deal_info_completed["kwh"])
+                with open("./config.json", 'w') as f1:
+                    json.dump(config_set_json, f1, indent=4)
+
                 time.sleep(1)
 
-                accepted_list_json = tr_list_accepted()
-                # accepted_list = accepted_list_json[" "]
-                print(str(accepted_list_json))
+            except offer_error:
+                print("현재 거래가 진행중입니다.")
+                print("기존 거래를 취소합니다.")
+                cancel_result_json = tr_cancel_order()
+                cancel_result = cancel_result_json["result"]
+                cancel_result_json = tr_cancel_offer()
+                cancel_result = cancel_result_json["result"]
+                prnt(cancel_result_json)
 
-                # ordered_list_json = tr_list_ordered(offered_deal_id)  # order ID 조회
-                # ordered_list = ordered_list_json["requested_deal_info_list"]
+            except cancel_offer:
+                cancel_result_json = tr_cancel_offer()
+                cancel_result = cancel_result_json["result"]
+                prnt(cancel_result_json)
 
-                deal_info_json = tr_browse_deal(offered_deal_id) #거래 조회
-                deal_info_completed = deal_info_json["deal_info"]
-                prnt(deal_info_completed)
-                send_ptm_data_to_ems('contractMsg') #Accept 이후 contractMsg를 통해 EMS에 결과 정보 전thd
+        else : #노말 상태
+            print('normal state: SoC lv is normally')
+            time.sleep(3)
 
-                time.sleep(1)
-                break
+        # record production (IF.TR.production.record)
 
-            # print("=== NOT Accepted ===")
-            time.sleep(1)
-            continue
+        # print("==JSON===== " + str(record_result_json))
+        # print("==EXTRACT== " + str(record_result))
+        # print("==TYPE===== " + str(type(record_result)))
 
-        # accepted_list #여기를 조건문 처리해서 마무리되게하고 전체 flow 반복되게하면 되지않으까?
-
-
-
-        # accepted_list_json = tr_list_accepted()
-        # print(str(accepted_list_json))
-
-        # finish deal (IF.TR.finish)
-        # finish_result_json = tr_finish()
-        # finish_result = finish_result_json["result"]
-        # print("==JSON===== " + str(finish_result_json))
-        # print("==EXTRACT== " + str(finish_result))
-        # print("==TYPE===== " + str(type(finish_result)))
-
-        # cancel ordered deal (IF.TR.cancel.order)
-        # cancel_result_json = tr_cancel_order()
-        # cancel_result = cancel_result_json["result"]
-        # print("==JSON===== " + str(cancel_result_json))
-        # print("==EXTRACT== " + str(cancel_result))
-        # print("==TYPE===== " + str(type(cancel_result)))
-
-
-        # get EID Document (IF.ID.document)
-        # eid_document_json = id_document(eid)
-        # eid_document = eid_document_json["eid_document"]
-        # print("==JSON===== " + str(eid_document_json))
-        # print("==EXTRACT== " + str(eid_document))
-        # print("==TYPE===== " + str(type(eid_document)))
-
-
-        # client.close()
-        # print("Client closed")
+    client.close()
+    print("Client closed")
 
 
 
 
-    elif stateOfcharge >= config_set_json["high SoC lv"] : #판매자상태
-        print('\n### MODE: SELLER STATE ###\n')
-        # get EID (IF.ID.retrieve)
-        eid_json = id_retrieve()
-        eid = eid_json["eid"]
-        # print("BEMS ID: ", eid[9:])
-        # print("==JSON===== " + str(eid_json))
-        # print("==EXTRACT== " + str(eid))
-        # print("==TYPE===== " + str(type(eid)))
-
-        send_ptm_data_to_ems("regist")
-
-        # offer deal (IF.TR.offer) price, quantity
-        deal_id_json = tr_offer("3998", "300") #  price는 한전가격으로? //SoC 용량, pcs 용량 고려해서 연산해보//
-        deal_id = deal_id_json["deal_id"]
-
-        # print("==JSON===== " + str(deal_id_json))
-        # print("==EXTRACT== " + str(deal_id))
-        # print("==TYPE===== " + str(type(deal_id)))
-        # get owner's offered deal id
-        # eid_json = id_retrieve()
-        # eid = eid_json["eid"]
-        print("")
-        offered_deal_id_json = tr_browse_dealIDSeller(eid)
-        # offered_deal_id_json = tr_browse_dealID(eid)
-        offered_deal_id = offered_deal_id_json["ongoing_deal_id"]
-        # print("===== deal id: " + str(offered_deal_id_json))
-        # print("===== deal id: " + offered_deal_id)
+            # with open("ems_st_msg.json", 'w') as ems_st_msg:
+            #     config_set_json = json.loads(config_set.read())
 
 
-        # get ordered list to offered deal (IF.TR.ordered)
-        # offered_deal_id = "0x85448150990e25de225a6f0782f549c142ed2608492292d750e2bd49e3b4d14d"
-        # ordered_list_json = tr_list_ordered(offered_deal_id)
-        # ordered_list = ordered_list_json["requested_deal_info_list"]
-        # print("==JSON===== " + str(ordered_list_json))
-        # print("==EXTRACT== " + str(ordered_list))
-        # print("==TYPE===== " + str(type(ordered_list)))
+
+            # print("==JSON===== " + str(deal_id_json))
+            # print("==EXTRACT== " + str(deal_id))
+            # print("==TYPE===== " + str(type(deal_id)))
+            # get owner's offered deal id
+            # eid_json = id_retrieve()
+            # eid = eid_json["eid"]
 
 
-        # browse deal info (IF.TR.browse.deal)
-        # deal_id = "0x39ff7f192972015e3a163ae9b08cbdcbe7b670006fd65c7aa639c6523be25421"
-        # deal_info_json = tr_browse_deal('0x4b760dcdd8ce63c9e2e032d638340f40c891fdf3b91c33d0dfe572cf9ac2c173')
-        # deal_info = deal_info_json["deal_info"]["ordered"]
-        # print("==JSON===== " + str(deal_info_json))
-        # print("==EXTRACT== " + str(deal_info))
-        # print("==TYPE===== " + str(type(deal_info)))
-        for count in tqdm(range(1,config_set_json["contract delay set"]), desc="Waiting for orders", mininterval=1):
 
-            deal_info_json = tr_browse_deal(offered_deal_id)
-            deal_info = deal_info_json["deal_info"]["ordered"]
+            # get ordered list to offered deal (IF.TR.ordered)
+            # offered_deal_id = "0x85448150990e25de225a6f0782f549c142ed2608492292d750e2bd49e3b4d14d"
+            # ordered_list_json = tr_list_ordered(offered_deal_id)
+            # ordered_list = ordered_list_json["requested_deal_info_list"]
+            # print("==JSON===== " + str(ordered_list_json))
+            # print("==EXTRACT== " + str(ordered_list))
+            # print("==TYPE===== " + str(type(ordered_list)))
+
+
+            # browse deal info (IF.TR.browse.deal)
+            # deal_id = "0x39ff7f192972015e3a163ae9b08cbdcbe7b670006fd65c7aa639c6523be25421"
+            # deal_info_json = tr_browse_deal('0x4b760dcdd8ce63c9e2e032d638340f40c891fdf3b91c33d0dfe572cf9ac2c173')
+            # deal_info = deal_info_json["deal_info"]["ordered"]
+            # print("==JSON===== " + str(deal_info_json))
+            # print("==EXTRACT== " + str(deal_info))
+            # print("==TYPE===== " + str(type(deal_info)))
+
             # print("==JSON===== " + str(deal_info_json))
             # print("==EXTRACT== " + str(deal_info))
             # print("==TYPE===== " + str(type(deal_info)))
@@ -888,150 +1031,83 @@ if __name__ == "__main__":
             # ordered_list = ordered_list_json["requested_deal_info_list"]
             # print("===== ordered list: " + str(ordered_list))
             # print("==TYPE===== " + str(type(ordered_list)))
-            if deal_info == "True":
-                print()
-                ordered_list_json = tr_list_ordered(offered_deal_id)  # order ID 조회
-                ordered_list = ordered_list_json["requested_deal_info_list"]
 
-                acceptingID_info = ordered_list[0]
-                accept_result_json = tr_accept(acceptingID_info['buyer_eid'])
-                accept_result = accept_result_json["result"]
-
-
-                deal_info_json = tr_browse_deal(offered_deal_id) #거래 조회
-                deal_info_completed = deal_info_json["deal_info"]
-                send_ptm_data_to_ems('contractMsg')
-
-                time_set = datetime.fromtimestamp(int(deal_info_completed["txTimestamp"][0:10]) + config_set_json["start_delay"]).strftime('%Y%m%d%H%M%S')
-
-                break
-
-
-
-
-            time.sleep(1)
-            continue
-        for cnt in tqdm(range(1,config_set_json["finish delay set"]), desc="Waiting for Transaction", mininterval=1):
-
-            with open('ems_ed_msg.json') as file:
-                tmp_finish_json = json.loads(file.read())
-            res_finish_cm_type = tmp_finish_json["parameter"]["cm_type"]
-            res_finish_time = tmp_finish_json["request_time"]
-
-            if res_finish_cm_type == 'end' and res_finish_time > time_set : #20201103231313
-                finish_result_json = tr_finish()
-                finish_result = finish_result_json["result"]
-                tmp_finish_json["parameter"]["cm_type"] = ""
-                tmp_finish_json["request_time"] = ""
-                with open('ems_ed_msg.json', 'w') as filee:
-                    json.dump(tmp_finish_json, filee, indent=4)
-
-                time.sleep(1)
-                break
-
-            time.sleep(1)
-            continue
-        if not res_finish_cm_type == 'end' :  #전력거래 완료 예상 시간 초>
-            print('ERROR: 전력거래 이상 발생') # EMS로 msg 날리기
-
-
-        # with open("ems_st_msg.json", 'w') as ems_st_msg:
-        #     config_set_json = json.loads(config_set.read())
-
-
-
-
-    # if 안으로 들어가도될것같아
-        # # get ordered list to offered deal (IF.TR.ordered)
-        # # offered_deal_id = "0xacf19f6ad4b35734e3e2abfd05680b013634e1c07d4ff8d2246f7812749a5b67"
-        # ordered_list_json = tr_list_ordered(offered_deal_id)  # order ID 조회
-        # ordered_list = ordered_list_json["requested_deal_info_list"]
-        # # print("==EXTRACT== " + str(ordered_list[0]))
-        # # print("==TYPE===== " + str(type(ordered_list[0])))
-        # acceptingID_info = ordered_list[0]
-        #
-        # # accept deal (IF.TR.accept)# 주문 수락
-        #
-        # accept_result_json = tr_accept(acceptingID_info['buyer_eid'])
-        # accept_result = accept_result_json["result"]
-        # # print("==JSON===== " + str(accept_result_json))
-        # # print("==EXTRACT== " + str(accept_result))
-        # # print("==TYPE===== " + str(type(accept_result)))
-        #
-        # # finish deal (IF.TR.finish) #거래종료
-        # finish_result_json = tr_finish()
-        # finish_result = finish_result_json["result"]
-        #
-        # # print("==JSON===== " + str(finish_result_json))
-        # # print("==EXTRACT== " + str(finish_result))
-        # # print("==TYPE===== " + str(type(finish_result)))
-        # # print("==JSON===== " + str(deal_info_json))
-        # # print("==EXTRACT== " + str(deal_info))
-        #
-        # # get ongoing eid list (IF.TR.list.ongoingEID)
-        # # ongoing_eid_list_json = tr_list_ongoingEID()
-        # # ongoing_eid_list = ongoing_eid_list_json["ongoing_eid_list"]
-        # # print("    JSON    =" + str(ongoing_eid_list_json))
-        # # print("  EXTRACT   =" + str(ongoing_eid_list))
-        # # print("    TYPE    = " + str(type(ongoing_eid_list)))
-        #
-        # # get finished deal list (IF.TR.list.finished)
-        # # finished_deal_list_json = tr_list_finished()
-        # # finished_deal_list = finished_deal_list_json["completed_deal_info_list"]
-        # # print("==JSON===== " + str(finished_deal_list_json))
-        # # print("==EXTRACT== " + str(finished_deal_list))
-        # # print("==TYPE===== " + str(type(finished_deal_list)))
-        #
-        # # get ongoing eid list (IF.TR.list.ongoingEID)
-        # # ongoing_eid_list_json = tr_list_ongoingEID()
-        # # ongoing_eid_list = ongoing_eid_list_json["ongoing_eid_list"]
-        # # print("    JSON    =" + str(ongoing_eid_list_json))
-        # # print("  EXTRACT   =" + str(ongoing_eid_list))
-        # # print("    TYPE    = " + str(type(ongoing_eid_list)))
-        #
-        # # accept deal (IF.TR.accept)
-        # # buyer_eid = "eid:bems:0001a25ce4b8d6c3bf64c7fdbfb323b46e9f3f854ac443765f0"
-        # # accept_result_json = tr_accept(buyer_eid)
-        # # accept_result = accept_result_json["result"]
-        # # print("==JSON===== " + str(accept_result_json))
-        # # print("==EXTRACT== " + str(accept_result))
-        # # print("==TYPE===== " + str(type(accept_result)))
-        #
-# # finish deal (IF.TR.finish)
-        # # finish_result_json = tr_finish()
-        # # finish_result = finish_result_json["result"]
-        # # print("==JSON===== " + str(finish_result_json))
-        # # print("==EXTRACT== " + str(finish_result))
-        # # print("==TYPE===== " + str(type(finish_result)))
-        #
-        # # cancel order deal
-        # # cancel_order_result = tr_cancel_order()
-        # # print("===== cancel order result: " + str(cancel_order_result))
-        #
-        # # get ordered deal list
-        # # ordered_list = tr_list_ordered(offer_deal_id)
-        # # print("===== ordered list: " + str(ordered_list))
-        #
-        # # client.close()
-        # # print("Client closed")
-        # deal_info_json = tr_browse_deal(offered_deal_id) #거래 조회
-        # deal_info_completed = deal_info_json["deal_info"]
-        # send_ptm_data_to_ems('contractMsg')
-
-
-
-    else : #노말 상태
-        print('normal state: SoC lv is normally')
-
-        # record production (IF.TR.production.record)
-        record_result_json = tr_production_record(round(genRatio), str(time.time())[0:10]) #genRatio float타입은 에러생김
-        record_result = record_result_json["result"]
-        # print("==JSON===== " + str(record_result_json))
-        # print("==EXTRACT== " + str(record_result))
-        # print("==TYPE===== " + str(type(record_result)))
-
-    client.close()
-    print("Client closed")
+        # if 안으로 들어가도될것같아
+            # # get ordered list to offered deal (IF.TR.ordered)
+            # # offered_deal_id = "0xacf19f6ad4b35734e3e2abfd05680b013634e1c07d4ff8d2246f7812749a5b67"
+            # ordered_list_json = tr_list_ordered(offered_deal_id)  # order ID 조회
+            # ordered_list = ordered_list_json["requested_deal_info_list"]
+            # # print("==EXTRACT== " + str(ordered_list[0]))
+            # # print("==TYPE===== " + str(type(ordered_list[0])))
+            # acceptingID_info = ordered_list[0]
+            #
+            # # accept deal (IF.TR.accept)# 주문 수락
+            #
+            # accept_result_json = tr_accept(acceptingID_info['buyer_eid'])
+            # accept_result = accept_result_json["result"]
+            # # print("==JSON===== " + str(accept_result_json))
+            # # print("==EXTRACT== " + str(accept_result))
+            # # print("==TYPE===== " + str(type(accept_result)))
+            #
+            # # finish deal (IF.TR.finish) #거래종료
+            # finish_result_json = tr_finish()
+            # finish_result = finish_result_json["result"]
+            #
+            # # print("==JSON===== " + str(finish_result_json))
+            # # print("==EXTRACT== " + str(finish_result))
+            # # print("==TYPE===== " + str(type(finish_result)))
+            # # print("==JSON===== " + str(deal_info_json))
+            # # print("==EXTRACT== " + str(deal_info))
+            #
+            # # get ongoing eid list (IF.TR.list.ongoingEID)
+            # # ongoing_eid_list_json = tr_list_ongoingEID()
+            # # ongoing_eid_list = ongoing_eid_list_json["ongoing_eid_list"]
+            # # print("    JSON    =" + str(ongoing_eid_list_json))
+            # # print("  EXTRACT   =" + str(ongoing_eid_list))
+            # # print("    TYPE    = " + str(type(ongoing_eid_list)))
+            #
+            # # get finished deal list (IF.TR.list.finished)
+            # # finished_deal_list_json = tr_list_finished()
+            # # finished_deal_list = finished_deal_list_json["completed_deal_info_list"]
+            # # print("==JSON===== " + str(finished_deal_list_json))
+            # # print("==EXTRACT== " + str(finished_deal_list))
+            # # print("==TYPE===== " + str(type(finished_deal_list)))
+            #
+            # # get ongoing eid list (IF.TR.list.ongoingEID)
+            # # ongoing_eid_list_json = tr_list_ongoingEID()
+            # # ongoing_eid_list = ongoing_eid_list_json["ongoing_eid_list"]
+            # # print("    JSON    =" + str(ongoing_eid_list_json))
+            # # print("  EXTRACT   =" + str(ongoing_eid_list))
+            # # print("    TYPE    = " + str(type(ongoing_eid_list)))
+            #
+            # # accept deal (IF.TR.accept)
+            # # buyer_eid = "eid:bems:0001a25ce4b8d6c3bf64c7fdbfb323b46e9f3f854ac443765f0"
+            # # accept_result_json = tr_accept(buyer_eid)
+            # # accept_result = accept_result_json["result"]
+            # # print("==JSON===== " + str(accept_result_json))
+            # # print("==EXTRACT== " + str(accept_result))
+            # # print("==TYPE===== " + str(type(accept_result)))
+            #
+    # # finish deal (IF.TR.finish)
+            # # finish_result_json = tr_finish()
+            # # finish_result = finish_result_json["result"]
+            # # print("==JSON===== " + str(finish_result_json))
+            # # print("==EXTRACT== " + str(finish_result))
+            # # print("==TYPE===== " + str(type(finish_result)))
+            #
+            # # cancel order deal
+            # # cancel_order_result = tr_cancel_order()
+            # # print("===== cancel order result: " + str(cancel_order_result))
+            #
+            # # get ordered deal list
+            # # ordered_list = tr_list_ordered(offer_deal_id)
+            # # print("===== ordered list: " + str(ordered_list))
+            #
+            # # client.close()
+            # # print("Client closed")
+            # deal_info_json = tr_browse_deal(offered_deal_id) #거래 조회
+            # deal_info_completed = deal_info_json["deal_info"]
+            # send_ptm_data_to_ems('contractMsg')
 
     # 구매 2 판매 1 > 3가지
     # 구매 1 판매 2 > 3가지

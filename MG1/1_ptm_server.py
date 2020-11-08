@@ -4,49 +4,126 @@ import json
 
 app = Flask(__name__)
 
-IF_TR_startMsg = {
-        "type" : "RES",
-        "interface" : "IF.TR.startMsg",
-        "parameter" : "",
-        "state" : "success"
-        }
-
-IF_TR_startMsg_error = {
-        "type" : "RES",
-        "interface" : "IF.TR.startMsg",
-        "parameter" : "",
-        "state" : "error"
-        }
-
-IF_TR_endMsg = {
-        "type" : "RES",
-        "interface" : "IF.TR.endMsg",
-        "parameter" : "",
-        "state" : "success"
-        }
-
-IF_TR_endMsg_error = {
-        "type" : "RES",
-        "interface" : "IF.TR.endMsg",
-        "parameter" : "",
-        "state" : "error"
-        }
-
-
-@app.route('/b_tr_startMsg', methods = ['POST'])
+seller_scenario = {
+    "low SoC lv" : 30,
+    "high SoC lv" : 55
+}
+buyer_scenario = {
+    "low SoC lv" : 60,
+    "high SoC lv" : 80
+}
+normal_secnario = {
+    "low SoC lv" : 30,
+    "high SoC lv" : 60
+}
+success = {
+    "state" : "success"
+}
+@app.route('/scenario_1', methods = ['POST'])
 def startMsg():
+    with open("./config.json") as f1:
+        config_set_json_1 = json.loads(f1.read())
+    prnt(config_set_json_1)
+    with open("../MG2/config.json") as f2:
+        config_set_json_2 = json.loads(f2.read())
+    prnt(config_set_json_2)
+    with open("../MG3/config.json") as f3:
+        config_set_json_3 = json.loads(f3.read())
+    prnt(config_set_json_3)
+
     try:
         user = request.get_json()#json 데이터를 받아옴
         prnt(user)
-        if user["parameter"]["cm_type"] == "start":
-            with open("ems_st_msg.json", 'w') as ems_st_msg:
-                json.dump(user, ems_st_msg, indent=4)
-            return jsonify(IF_TR_startMsg)
-        else :
-            return jsonify(IF_TR_startMsg_error)
+
+        if user["scenario"] == 1 : #MG1: 판매, MG2: 구매, MG3: 노말
+            config_set_json_1["low SoC lv"] = seller_scenario["low SoC lv"]
+            config_set_json_1["high SoC lv"] = seller_scenario["high SoC lv"]
+            with open("./config.json", 'w') as f1:
+                json.dump(config_set_json_1, f1, indent=4)
+
+            config_set_json_2["low SoC lv"] = buyer_scenario["low SoC lv"]
+            config_set_json_2["high SoC lv"] = buyer_scenario["high SoC lv"]
+            with open("../MG2/config.json", 'w') as f2:
+                json.dump(config_set_json_2, f2, indent=4)
+
+            config_set_json_3["low SoC lv"] = normal_secnario["low SoC lv"]
+            config_set_json_3["high SoC lv"] = normal_secnario["high SoC lv"]
+            with open("../MG3/config.json", 'w') as f3:
+                json.dump(config_set_json_3, f3, indent=4)
+
+            return jsonify(success)
+
+        elif user["scenario"] == 2 : #MG1: 판매, MG2: 구매, MG3: 구 매
+            config_set_json_1["low SoC lv"] = seller_scenario["low SoC lv"]
+            config_set_json_1["high SoC lv"] = seller_scenario["high SoC lv"]
+            with open("./config.json", 'w') as f1:
+                json.dump(config_set_json_1, f1, indent=4)
+
+            config_set_json_2["low SoC lv"] = buyer_scenario["low SoC lv"]
+            config_set_json_2["high SoC lv"] = buyer_scenario["high SoC lv"]
+            with open("../MG2/config.json", 'w') as f2:
+                json.dump(config_set_json_2, f2, indent=4)
+
+            config_set_json_3["low SoC lv"] = buyer_scenario["low SoC lv"]
+            config_set_json_3["high SoC lv"] = buyer_scenario["high SoC lv"]
+            with open("../MG3/config.json", 'w') as f3:
+                json.dump(config_set_json_3, f3, indent=4)
+
+            return jsonify(success)
+
+        elif user["scenario"] == 3 : #MG1: 판매, MG2: 구매, MG3: 판매
+            config_set_json_1["low SoC lv"] = seller_scenario["low SoC lv"]
+            config_set_json_1["high SoC lv"] = seller_scenario["high SoC lv"]
+            with open("./config.json", 'w') as f1:
+                json.dump(config_set_json_1, f1, indent=4)
+
+            config_set_json_2["low SoC lv"] = buyer_scenario["low SoC lv"]
+            config_set_json_2["high SoC lv"] = buyer_scenario["high SoC lv"]
+            with open("../MG2/config.json", 'w') as f2:
+                json.dump(config_set_json_2, f2, indent=4)
+
+            config_set_json_3["low SoC lv"] = seller_scenario["low SoC lv"]
+            config_set_json_3["high SoC lv"] = seller_scenario["high SoC lv"]
+            with open("../MG3/config.json", 'w') as f3:
+                json.dump(config_set_json_3, f3, indent=4)
+
+            return jsonify(success)
+
+        elif user["scenario"] == 4 : #MG1: 판매, MG2: 노말, MG3: 노3
+            config_set_json_1["low SoC lv"] = seller_scenario["low SoC lv"]
+            config_set_json_1["high SoC lv"] = seller_scenario["high SoC lv"]
+            with open("./config.json", 'w') as f1:
+                json.dump(config_set_json_1, f1, indent=4)
+
+            config_set_json_2["low SoC lv"] = normal_secnario["low SoC lv"]
+            config_set_json_2["high SoC lv"] = normal_secnario["high SoC lv"]
+            with open("../MG2/config.json", 'w') as f2:
+                json.dump(config_set_json_2, f2, indent=4)
+
+            config_set_json_3["low SoC lv"] = normal_secnario["low SoC lv"]
+            config_set_json_3["high SoC lv"] = normal_secnario["high SoC lv"]
+            with open("../MG3/config.json", 'w') as f3:
+                json.dump(config_set_json_3, f3, indent=4)
+
+            return jsonify(success)
+
+
+        # elif user["scenario"] == 2 : #MG1 :
+        #     config_set_json["low SoC lv"] = seller_scenario["low SoC lv"]
+        #     config_set_json["high SoC lv"] = seller_scenario["high SoC lv"]
+        #     with open("config.json", 'w') as f:
+        #         json.dump(config_set_json, f, indent=4)
+        # elif user["scenario"] == 3 :
+        #
+        # elif user["scenario"] == 4 :
+        #
+        #     with open("ems_st_msg.json", 'w') as ems_st_msg:
+        #         json.dump(user, ems_st_msg, indent=4)
+        #     return jsonify(IF_TR_startMsg)
+
 
     except:
-        return jsonify(IF_TR_startMsg_error)
+        pass
     #     f.append(user[""])
     # if user['parameter']['id'] != '' and user['request_time'] != '' and user['parameter']['cm_type'] == 'start' :
         # return jsonify(IF_TR_startMsg)# 받아온 데이터를 다시 전송
