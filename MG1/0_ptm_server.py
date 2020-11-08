@@ -38,6 +38,7 @@ def startMsg():
         prnt(user)
 
         if user["scenario"] == 1 : #MG1: 판매, MG2: 구매, MG3: 노말
+            print("MG1 : seller, MG2 : buyer, MG3 : normal")
             config_set_json_1["low SoC lv"] = seller_scenario["low SoC lv"]
             config_set_json_1["high SoC lv"] = seller_scenario["high SoC lv"]
             with open("./config.json", 'w') as f1:
@@ -55,14 +56,15 @@ def startMsg():
 
             return jsonify(success)
 
-        elif user["scenario"] == 2 : #MG1: 판매, MG2: 구매, MG3: 구 매
-            config_set_json_1["low SoC lv"] = seller_scenario["low SoC lv"]
-            config_set_json_1["high SoC lv"] = seller_scenario["high SoC lv"]
+        elif user["scenario"] == 2 : #MG1: 구매, MG2: 판매, MG3: 구 매
+            print("MG1 : buyer, MG2 : seller, MG3 : buyer")
+            config_set_json_1["low SoC lv"] = buyer_scenario["low SoC lv"]
+            config_set_json_1["high SoC lv"] = buyer_scenario["high SoC lv"]
             with open("./config.json", 'w') as f1:
                 json.dump(config_set_json_1, f1, indent=4)
 
-            config_set_json_2["low SoC lv"] = buyer_scenario["low SoC lv"]
-            config_set_json_2["high SoC lv"] = buyer_scenario["high SoC lv"]
+            config_set_json_2["low SoC lv"] = seller_scenario["low SoC lv"]
+            config_set_json_2["high SoC lv"] = seller_scenario["high SoC lv"]
             with open("../MG2/config.json", 'w') as f2:
                 json.dump(config_set_json_2, f2, indent=4)
 
@@ -73,7 +75,8 @@ def startMsg():
 
             return jsonify(success)
 
-        elif user["scenario"] == 3 : #MG1: 판매, MG2: 구매, MG3: 판매
+        elif user["scenario"] == 3 : #MG1: 판매, MG2: 판매, MG3: 구매
+            print("MG1 : seller, MG2 : seller, MG3 : buyer")
             config_set_json_1["low SoC lv"] = seller_scenario["low SoC lv"]
             config_set_json_1["high SoC lv"] = seller_scenario["high SoC lv"]
             with open("./config.json", 'w') as f1:
@@ -92,6 +95,7 @@ def startMsg():
             return jsonify(success)
 
         elif user["scenario"] == 4 : #MG1: 판매, MG2: 노말, MG3: 노3
+            print("MG1 : seller, MG2 : normal, MG3 : normal")
             config_set_json_1["low SoC lv"] = seller_scenario["low SoC lv"]
             config_set_json_1["high SoC lv"] = seller_scenario["high SoC lv"]
             with open("./config.json", 'w') as f1:

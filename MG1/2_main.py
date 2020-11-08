@@ -35,6 +35,8 @@ def send_ptm_data_to_ems (target_Data) :
             # print('\n status_code : ' + str(res.status_code))
             print('PTM ==> EMS: ')
             prnt(target)
+            time.sleep(1)
+
             response_json = res.json()
             print('EMS ==> PTM: ')
             prnt(response_json)
@@ -51,6 +53,8 @@ def send_ptm_data_to_ems (target_Data) :
             # print('\n status_code : ' + str(res.status_code))
             print('PTM ==> EMS: ')
             prnt(target)
+            time.sleep(1)
+
             response_json = res.json()
             print('EMS ==> PTM: ')
             prnt(response_json)
@@ -67,6 +71,8 @@ def send_ptm_data_to_ems (target_Data) :
             # print('\n status_code : ' + str(res.status_code))
             print('PTM ==> EMS: ')
             prnt(target)
+            time.sleep(1)
+
             response_json = res.json()
             print('EMS ==> PTM: ')
             prnt(response_json)
@@ -111,6 +117,8 @@ def send_ptm_data_to_ems (target_Data) :
             # print('\n status_code : ' + str(res.status_code))
             print('PTM ==> EMS: ')
             prnt(target)
+            time.sleep(1)
+            
             response_json = res.json()
             print('EMS ==> PTM: ')
             prnt(response_json)
@@ -751,7 +759,7 @@ if __name__ == "__main__":
             false = "False"
             maket_cnt = 0
             for i in range(0, len(offered_deal_list)):
-                if false not in offered_deal_list[i]["ordered"]:
+                if false in offered_deal_list[i]["ordered"]:
                     maket_cnt += 1
             if maket_cnt >= 1:
                 try:
@@ -783,7 +791,7 @@ if __name__ == "__main__":
                     # print("===== deal id: " + offered_deal_id)
                     # print("==TYPE===== " + str(type(browse_deal_json)))
                     tmp_accepted = 0
-                    for count in tqdm(range(1,config_set_json["contract delay set"]), desc="Waiting for Accept", mininterval=1):
+                    for count in tqdm(range(1,config_set_json["accepted delay set"]), desc="Waiting for Accept", mininterval=1):
 
                         browse_deal_json = tr_browse_deal(offered_deal_id)
                         browse_deal_info = browse_deal_json['deal_info']
@@ -898,7 +906,7 @@ if __name__ == "__main__":
                 send_ptm_data_to_ems("regist")
 
                 # offer deal (IF.TR.offer) price, quantity
-                deal_id_json = tr_offer("1800", "5") #  price는 한전가격으로? //SoC 용량, pcs 용량 고려해서 연산해보//
+                deal_id_json = tr_offer("1500", "5") #  price는 한전가격으로? //SoC 용량, pcs 용량 고려해서 연산해보//
                 deal_id = deal_id_json["parameter"]["deal_id"]
                 if deal_id_json["errno"] == "404":
                     raise offer_error()
