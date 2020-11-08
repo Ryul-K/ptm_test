@@ -2,11 +2,13 @@ from flask import Flask, request, jsonify
 from pyprnt import prnt
 import json
 
+
+
 app = Flask(__name__)
 
 seller_scenario = {
     "low SoC lv" : 30,
-    "high SoC lv" : 50
+    "high SoC lv" : 55
 }
 buyer_scenario = {
     "low SoC lv" : 60,
@@ -19,7 +21,7 @@ normal_secnario = {
 success = {
     "state" : "success"
 }
-@app.route('/scenario_1', methods = ['POST'])
+@app.route('/scenario', methods = ['POST'])
 def startMsg():
     with open("./config.json") as f1:
         config_set_json_1 = json.loads(f1.read())
