@@ -118,7 +118,7 @@ def send_ptm_data_to_ems (target_Data) :
             print('PTM ==> EMS: ')
             prnt(target)
             time.sleep(1)
-            
+
             response_json = res.json()
             print('EMS ==> PTM: ')
             prnt(response_json)
@@ -743,8 +743,9 @@ if __name__ == "__main__":
         record_result = record_result_json["result"]
 
         if stateOfcharge <= config_set_json["low SoC lv"] : #구매자상태
-            time.sleep(10)
+            time.sleep(8)
             print('\n### MODE: BUYER STATE ###\n')
+            time.sleep(2)
             # get EID (IF.ID.retrieve)
             eid_json = id_retrieve()
             eid = eid_json["eid"]
@@ -895,7 +896,7 @@ if __name__ == "__main__":
         elif stateOfcharge >= config_set_json["high SoC lv"] : #판매자상태
             try:
                 print('\n### MODE: SELLER STATE ###\n')
-                # get EID (IF.ID.retrieve)
+                time.sleep(2)
                 eid_json = id_retrieve()
                 eid = eid_json["eid"]
                 # print("BEMS ID: ", eid[9:])

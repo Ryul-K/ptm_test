@@ -5,8 +5,8 @@ from iconsdk.wallet.wallet import KeyWallet
 import json
 import re
 
-# cx78c6f7df2b51964bfc629d0cb4da78b01bf90afd 안쓴거
-# cx3bb702a5e8ce80f7ac54c465b53c26fbb38cde23
+
+# cx3bb702a5e8ce80f7ac54c465b53c26fbb38cde23 <- 세팅 스마트컨트랙트
 # cx8945f622877ac91cfa344c08d7c36440fe377010
 
 
