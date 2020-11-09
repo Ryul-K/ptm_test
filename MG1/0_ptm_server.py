@@ -75,8 +75,8 @@ def startMsg():
 
             return jsonify(success)
 
-        elif user["scenario"] == 3 : #MG1: 판매, MG2: 판매, MG3: 구매
-            print("MG1 : seller, MG2 : seller, MG3 : buyer")
+        elif user["scenario"] == 3 : #MG1: 판매, MG2: 구매, MG3: 판매
+            print("MG1 : seller, MG2 : buyer, MG3 : seller")
             config_set_json_1["low SoC lv"] = seller_scenario["low SoC lv"]
             config_set_json_1["high SoC lv"] = seller_scenario["high SoC lv"]
             with open("./config.json", 'w') as f1:
