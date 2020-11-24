@@ -1,4 +1,4 @@
-
+ 
 # interfaces(5) file used by ifup(8) and ifdown(8)
 
 # Please note that this file is written to be used with dhcpcd
@@ -13,16 +13,12 @@ iface lo inet loopback
 auto eth0
 allow-hotplug eth0
 iface eth0 inet static
-address 192.168.60.83
+address 192.168.10.82
 netmask 255.255.255.0
-gateway 192.168.60.1
+gateway 192.168.10.1
 
 auto wlan0
 allow-hotplug wlan0
 iface wlan0 inet dhcp
 wpa-conf /etc/wpa_supplicant/wpa_supplicant.conf
-
-auto usb0
-allow-hotplug usb0
-iface usb0 inet dhcp
 

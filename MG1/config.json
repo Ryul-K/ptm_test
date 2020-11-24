@@ -14,7 +14,7 @@
     "PTM host": "localhost",
     "EMS Server URL": "http://220.80.195.130:4848",
     "low SoC lv": 30,
-    "high SoC lv": 55,
+    "high SoC lv": 60,
     "contract delay set": 60,
     "accepted delay set": 30,
     "finish delay set": 3600,
